@@ -1,0 +1,2 @@
+ARG PHP_VERSION=7.3
+FROM srijanlabs/php-fpm-apache:${PHP_VERSION}-1.x as fpm

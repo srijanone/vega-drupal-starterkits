@@ -1,0 +1,80 @@
+version: '3.5'
+
+services:
+  cli:
+    build: 
+      context: .
+      dockerfile: Dockerfile.cli
+      args: 
+        - PHP_VERSION: ${PHP_VERSION}
+    image: php-cli:${PHP_VERSION}-1.x-local
+    user: continua
+    working_dir: /app
+    volumes:
+      - app:/app
+      - core:/app/web/core
+      - vendor:/app/vendor
+
+  php:
+    build: 
+      context: .
+      dockerfile: Dockerfile.fpm-apache
+      args: 
+        - PHP_VERSION: ${PHP_VERSION}
+    image: php-fpm-apache:${PHP_VERSION}-1.x-local
+    depends_on:
+      - cli
+    ports:
+      - 9000:9000
+    volumes:
+      - app:/app
+      - core:/app/web/core
+      - vendor:/app/vendor
+
+  apache:
+    image: srijanlabs/apache:1.x
+    working_dir: /app
+    ports:
+      - 8080:8080
+    volumes:
+      - ./apache/vhost/app.conf:/etc/apache2/sites-enabled/000-default.conf 
+      - app:/app
+      - core:/app/web/core
+      - vendor:/app/vendor
+    depends_on:
+      - php
+
+  db:
+    image: mysql:5.6
+    ports:
+      - "3306:3306"
+    volumes:
+      - mysql-data:/var/lib/mysql
+    environment:
+      MYSQL_ROOT_PASSWORD: vega
+      MYSQL_USER: vega
+      MYSQL_PASSWORD: vega
+      MYSQL_DATABASE: vega
+  
+  # mailhog:
+  #   image: mailhog/mailhog
+  #   ports:
+  #     - 8025:8025
+
+  # blackfire:
+  #   image: blackfire/blackfire
+  #   environment:
+  #     # Exposes BLACKFIRE_SERVER_* environment variables from the host
+  #     BLACKFIRE_SERVER_ID: 1ce028d2-644b-4451-9eaa-7f142f4151cc
+  #     BLACKFIRE_SERVER_TOKEN: 91471c1696eefc49bf4a397ddafc457a49825c57ccbd45916a64e23aa106add0
+
+volumes:
+  app:
+    driver: local
+    driver_opts:
+      o: bind
+      type: none
+      device: ${PWD}
+  mysql-data:
+  core:
+  vendor:
