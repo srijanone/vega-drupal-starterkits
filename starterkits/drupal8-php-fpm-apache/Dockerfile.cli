@@ -1,2 +1,4 @@
+ARG PHP_VERSION=7.3
 FROM srijanlabs/php-cli:${PHP_VERSION}-1.x
-RUN composer install --no-dev --prefer-dist --no-progress --no-suggest --no-interaction --optimize-autoloader
+# COPY composer* ./
+CMD ["composer", "install", "--no-dev", "--prefer-dist", "--no-progress", "--no-suggest", "--no-interaction", "--optimize-autoloader"]
