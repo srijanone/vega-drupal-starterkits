@@ -1,39 +1,64 @@
 version: '3.8'
+#____________________________________________ Named Volumes ________________________________________________#
+volumes:
+  app:
+    driver: local
+    driver_opts:
+      o: bind
+      type: none
+      device: ${PWD}
+  mysql-data:
+  core:
+  vendor:
+#______________________________________________ Networks ___________________________________________________#
+networks: 
+  demo_net:
+    ipam:
+      driver: default
+      config: 
+        - subnet: 172.29.0.0/16
+  default:
+    name: starterkit
+#___________________________________________ YAML extensions _______________________________________________#
+x-app-volumes: &app-volumes
+    - app:/app
+    - core:/app/web/core
+    - vendor:/app/vendor
+    - ./apache/vhost/app.conf:/etc/apache2/sites-enabled/000-default.conf
 
+x-app-envs: &app-envs
+  env_file: .env
+
+x-app-networks: &app-networks
+  - demo_net
+  
+#_______________________________________________ Services __________________________________________________#
 services:
+  #---------------------------------- php cli -----------------------------------------#
   cli:
     build: 
       context: .
       dockerfile: Dockerfile.cli
-      args: 
+      args:
         PHP_VERSION: ${PHP_VERSION:-7.3}
     image: "php-cli:${PHP_VERSION:-7.3}-1.x-local"
     user: continua
     working_dir: /app
     depends_on:
       - chown
-    volumes:
-      - app:/app
-      - core:/app/web/core
-      - vendor:/app/vendor
+    volumes:  *app-volumes
+    networks: *app-networks
+    <<: *app-envs
     # network_mode: host
-    networks: 
-      - demo_net
-    #   demo_net:
-    #     ipv4_address: 172.29.1.1
-
-
+  #----------------------------- permission setter ------------------------------------#
   chown:
     image: "php-cli:${PHP_VERSION:-7.3}-1.x-local"
-    command: >
-      bash -c "chown -R continua:continua /app/vendor /app/web/core
-      && chmod u+w /app/web/sites/default"
+    entrypoint: [ "bash", "-c"]
+    command:
+      - "chown -R continua:continua /app/{vendor,web/core} && chmod u+w /app/web/sites/default"
     user: root
-    volumes:
-      - app:/app
-      - core:/app/web/core
-      - vendor:/app/vendor
-
+    volumes: *app-volumes
+  #---------------------------------- php-fpm -----------------------------------------#
   php:
     build: 
       context: .
@@ -46,35 +71,22 @@ services:
       - cli
     ports:
       - 9000:9000
-    volumes:
-      - app:/app
-      - core:/app/web/core
-      - vendor:/app/vendor
-    # network_mode: host
-    networks: 
-      - demo_net
-    #   demo_net:
-    #     ipv4_address: 172.29.1.2
-
+    volumes:  *app-volumes
+    networks: *app-networks
+    <<: *app-envs
+  #---------------------------------- apache ------------------------------------------#
   apache:
     image: php-fpm-apache:${PHP_VERSION:-7.3}-1.x-local
     command: ["apache2ctl", "-D", "FOREGROUND"]
     ports:
       - 8080:8080
-    volumes:
-      - ./apache/vhost/app.conf:/etc/apache2/sites-enabled/000-default.conf 
-      - app:/app
-      - core:/app/web/core
-      - vendor:/app/vendor
+    volumes: *app-volumes
     depends_on:
       - php
-    # network_mode: host
-    networks: 
-      demo_net:
-        ipv4_address: 172.29.1.3
-
-  db:
-    image: mysql:5.6
+    networks: *app-networks
+  #------------------------------- database (mysql) -----------------------------------#
+  mysql:
+    image: mysql:5.7
     ports:
       - "3306:3306"
     volumes:
@@ -83,39 +95,21 @@ services:
       MYSQL_ROOT_PASSWORD: ${DB_PASSWORD}
       MYSQL_USER: ${DB_USER}
       MYSQL_PASSWORD: ${DB_PASSWORD}
-      MYSQL_DATABASE: ${DB_DATABASE}
-    # network_mode: host
+      MYSQL_DATABASE: ${DB_NAME}
     networks: 
       - demo_net
-    #   demo_net:
-    #     ipv4_address: 172.29.1.4
+  #---------------------------- mailhog (email service) -------------------------------#
   
   # mailhog:
   #   image: mailhog/mailhog
   #   ports:
   #     - 8025:8025
 
+  #---------------------------- blackfire (performence) --------------------------------#
   # blackfire:
   #   image: blackfire/blackfire
   #   environment:
   #     # Exposes BLACKFIRE_SERVER_* environment variables from the host
   #     BLACKFIRE_SERVER_ID: 1ce028d2-644b-4451-9eaa-7f142f4151cc
   #     BLACKFIRE_SERVER_TOKEN: 91471c1696eefc49bf4a397ddafc457a49825c57ccbd45916a64e23aa106add0
-
-networks: 
-  demo_net:
-    ipam:
-      driver: default
-      config: 
-        - subnet: 172.29.0.0/16
-
-volumes:
-  app:
-    driver: local
-    driver_opts:
-      o: bind
-      type: none
-      device: ${PWD}
-  mysql-data:
-  core:
-  vendor:
+#===========================================================================================================#

@@ -756,12 +756,12 @@ $settings['entity_update_backup'] = TRUE;
 #   include $app_root . '/' . $site_path . '/settings.local.php';
 # }
 $databases['default']['default'] = array (
-  'database' => 'vega',
-  'username' => 'vega',
-  'password' => 'vega',
+  'database' => getenv('DB_NAME'),
+  'username' => getenv('DB_USER'),
+  'password' => getenv('DB_PASSWORD'),
   'prefix' => '',
-  'host' => 'db',
-  'port' => '3306',
+  'host' => getenv('DB_HOST'),
+  'port' => getenv('DB_PORT'),
   'namespace' => 'Drupal\\Core\\Database\\Driver\\mysql',
   'driver' => 'mysql',
 );
