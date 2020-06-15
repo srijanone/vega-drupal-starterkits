@@ -8,42 +8,31 @@ volumes:
       type: none
       device: ${PWD}
   mysql-data:
-  core:
-  vendor:
-  sockets:
+  # Add These volume will increse speed on non linux hosts.
+  core:               # drupal core
+  vendor:             # php modules
 #______________________________________________ Networks ___________________________________________________#
 networks: 
-  demo_net:
-    ipam:
-      driver: default
-      config: 
-        - subnet: 172.29.0.0/16
   default:
-    name: starterkit
+    name: vega
 #___________________________________________ YAML extensions _______________________________________________#
 x-app-volumes: &app-volumes
     - app:/app
     - core:/app/web/core
     - vendor:/app/vendor
     - ./apache/vhost/app.conf:/etc/apache2/sites-enabled/000-default.conf
-    - ./fpm/php-fpm.conf:/etc/php/${PHP_VERSION}/fpm/php-fpm.conf
-    - sockets:/var/run/fpm
 
 x-app-envs: &app-envsfile .env
 
 x-app-networks: &app-networks
-  - demo_net 
+  - default
   
 #_______________________________________________ Services __________________________________________________#
 services:
   #---------------------------------- php cli -----------------------------------------#
   cli:
-    build: 
-      context: .
-      dockerfile: Dockerfile.cli
-      args:
-        PHP_VERSION: ${PHP_VERSION:-7.3}
-    image: "php-cli:${PHP_VERSION:-7.3}-1.x-local"
+    image: "srijanlabs/php-cli:${PHP_VERSION:-7.3}-1.x"
+    command: ["composer", "install", "--no-dev", "--prefer-dist", "--no-progress", "--no-suggest", "--no-interaction", "--optimize-autoloader"]
     user: continua
     working_dir: /app
     depends_on:
@@ -51,53 +40,28 @@ services:
     volumes:  *app-volumes
     networks: *app-networks
     env_file:  *app-envsfile
-    # network_mode: host
   #----------------------------- permission setter ------------------------------------#
+  # This ccontainers chnages mounted named volumes user from root(default user) to continua.
   chown:
     image: "php-cli:${PHP_VERSION:-7.3}-1.x-local"
     entrypoint: [ "bash", "-c"]
     command:
       - "chown -R continua:continua /app/{vendor,web/core}"
-      - "&& chmod u+w /app/web/sites/default"
+      - "&& chmod u+w /app/web/sites/default" # Fix: cli from exiting with code 1
     user: root
     volumes: *app-volumes
-  #---------------------------------- drupal - apache -----------------------------------------#
-  # drupal:
-  #   build: 
-  #     context: .
-  #     dockerfile: Dockerfile.fpm-apache
-  #     args: 
-  #       PHP_VERSION: ${PHP_VERSION:-7.3}
-  #   image: php-fpm-apache:${PHP_VERSION:-7.3}-1.x-local
-  #   # command: ["php-fpm", "-F"]
-  #   depends_on:
-  #     - cli
-  #   ports:
-  #     - 8080:8080
-  #   volumes:  *app-volumes
-  #   networks: *app-networks
-  #   env_file:  *app-envsfile
-  #   environment: 
-  #     - PHP_HOST=localhost
   #---------------------------------- php-fpm -----------------------------------------#
   php:
-    build: 
-      context: .
-      dockerfile: Dockerfile.fpm-apache
-      args: 
-        PHP_VERSION: ${PHP_VERSION:-7.3}
-    image: php-fpm-apache:${PHP_VERSION:-7.3}-1.x-local
+    image: srijanlabs/php-fpm-apache:${PHP_VERSION:-7.3}-1.x
     command: ["php-fpm", "-F"]
     depends_on:
       - cli
-    ports:
-      - 9000:9000
     volumes:  *app-volumes
     networks: *app-networks
     env_file:  *app-envsfile
   #---------------------------------- apache ------------------------------------------#
   apache:
-    image: php-fpm-apache:${PHP_VERSION:-7.3}-1.x-local
+    image: srijanlabs/php-fpm-apache:${PHP_VERSION:-7.3}-1.x
     command: ["apache2ctl", "-D", "FOREGROUND"]
     depends_on:
       - php
@@ -118,20 +82,5 @@ services:
       MYSQL_USER: ${DB_USER}
       MYSQL_PASSWORD: ${DB_PASSWORD}
       MYSQL_DATABASE: ${DB_NAME}
-    networks: 
-      - demo_net
-  #---------------------------- mailhog (email service) -------------------------------#
-  
-  # mailhog:
-  #   image: mailhog/mailhog
-  #   ports:
-  #     - 8025:8025
-
-  #---------------------------- blackfire (performence) --------------------------------#
-  # blackfire:
-  #   image: blackfire/blackfire
-  #   environment:
-  #     # Exposes BLACKFIRE_SERVER_* environment variables from the host
-  #     BLACKFIRE_SERVER_ID: 1ce028d2-644b-4451-9eaa-7f142f4151cc
-  #     BLACKFIRE_SERVER_TOKEN: 91471c1696eefc49bf4a397ddafc457a49825c57ccbd45916a64e23aa106add0
+    networks: *app-networks
 #===========================================================================================================#
