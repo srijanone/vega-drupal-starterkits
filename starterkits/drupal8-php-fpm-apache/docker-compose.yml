@@ -10,6 +10,7 @@ volumes:
   mysql-data:
   core:
   vendor:
+  sockets:
 #______________________________________________ Networks ___________________________________________________#
 networks: 
   demo_net:
@@ -25,12 +26,13 @@ x-app-volumes: &app-volumes
     - core:/app/web/core
     - vendor:/app/vendor
     - ./apache/vhost/app.conf:/etc/apache2/sites-enabled/000-default.conf
+    - ./fpm/php-fpm.conf:/etc/php/${PHP_VERSION}/fpm/php-fpm.conf
+    - sockets:/var/run/fpm
 
-x-app-envs: &app-envs
-  env_file: .env
+x-app-envs: &app-envsfile .env
 
 x-app-networks: &app-networks
-  - demo_net
+  - demo_net 
   
 #_______________________________________________ Services __________________________________________________#
 services:
@@ -48,16 +50,35 @@ services:
       - chown
     volumes:  *app-volumes
     networks: *app-networks
-    <<: *app-envs
+    env_file:  *app-envsfile
     # network_mode: host
   #----------------------------- permission setter ------------------------------------#
   chown:
     image: "php-cli:${PHP_VERSION:-7.3}-1.x-local"
     entrypoint: [ "bash", "-c"]
     command:
-      - "chown -R continua:continua /app/{vendor,web/core} && chmod u+w /app/web/sites/default"
+      - "chown -R continua:continua /app/{vendor,web/core}"
+      - "&& chmod u+w /app/web/sites/default"
     user: root
     volumes: *app-volumes
+  #---------------------------------- drupal - apache -----------------------------------------#
+  # drupal:
+  #   build: 
+  #     context: .
+  #     dockerfile: Dockerfile.fpm-apache
+  #     args: 
+  #       PHP_VERSION: ${PHP_VERSION:-7.3}
+  #   image: php-fpm-apache:${PHP_VERSION:-7.3}-1.x-local
+  #   # command: ["php-fpm", "-F"]
+  #   depends_on:
+  #     - cli
+  #   ports:
+  #     - 8080:8080
+  #   volumes:  *app-volumes
+  #   networks: *app-networks
+  #   env_file:  *app-envsfile
+  #   environment: 
+  #     - PHP_HOST=localhost
   #---------------------------------- php-fpm -----------------------------------------#
   php:
     build: 
@@ -73,17 +94,18 @@ services:
       - 9000:9000
     volumes:  *app-volumes
     networks: *app-networks
-    <<: *app-envs
+    env_file:  *app-envsfile
   #---------------------------------- apache ------------------------------------------#
   apache:
     image: php-fpm-apache:${PHP_VERSION:-7.3}-1.x-local
     command: ["apache2ctl", "-D", "FOREGROUND"]
+    depends_on:
+      - php
     ports:
       - 8080:8080
     volumes: *app-volumes
-    depends_on:
-      - php
     networks: *app-networks
+    env_file:  *app-envsfile
   #------------------------------- database (mysql) -----------------------------------#
   mysql:
     image: mysql:5.7
