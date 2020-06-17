@@ -37,8 +37,8 @@ services:
     container_name: ${PROJECT_NAME}_chown
     entrypoint: [ "bash", "-c"]
     command:
-      - "chown -R continua:continua /app/{vendor,web/core}"
-      - "&& chmod u+w /app/web/sites/default" # Fixes: cli from exiting with code 1
+      - "chown -R continua:continua /app/{vendor,web/{core,sites/default}}"
+      - "&& chmod -R u+w /app/web/sites/default" # Fixes: cli from exiting with code 1
     user: root
     volumes: *app-volumes
   #---------------------------------- php cli -----------------------------------------#
