@@ -33,7 +33,7 @@ services:
   #----------------------------- permission setter ------------------------------------#
   # Change mounted named volumes user from root(default) to continua.
   chown:
-    image: "srijanlabs/php-cli:${PHP_VERSION}-1.x"
+    image: "srijanlabs/php-cli:${PHP_VERSION}-10"
     container_name: ${PROJECT_NAME}_chown
     entrypoint: [ "bash", "-c"]
     command:
@@ -42,7 +42,7 @@ services:
     volumes: *app-volumes
   #---------------------------------- php cli -----------------------------------------#
   cli:
-    image: "srijanlabs/php-cli:${PHP_VERSION}-1.x"
+    image: "srijanlabs/php-cli:${PHP_VERSION}-10"
     container_name: ${PROJECT_NAME}_cli
     command: ["composer", "install", "--no-dev", "--prefer-dist", "--no-progress", "--no-suggest", "--no-interaction", "--optimize-autoloader"]
     user: continua
@@ -54,7 +54,7 @@ services:
     env_file:  *app-envsfile
   #---------------------------------- php-fpm -----------------------------------------#
   php:
-    image: srijanlabs/php-fpm-apache:${PHP_VERSION}-1.x
+    image: srijanlabs/php-fpm-apache:${PHP_VERSION}-10-dev
     container_name: ${PROJECT_NAME}_php-fpm
     command: ["php-fpm", "-F"]
     depends_on:
@@ -65,7 +65,7 @@ services:
     env_file:  *app-envsfile
   #---------------------------------- apache ------------------------------------------#
   apache:
-    image: srijanlabs/php-fpm-apache:${PHP_VERSION}-1.x
+    image: srijanlabs/php-fpm-apache:${PHP_VERSION}-10-dev
     container_name: ${PROJECT_NAME}_apache
     command: ["apache2ctl", "-D", "FOREGROUND"]
     depends_on:
